@@ -1,0 +1,4 @@
+*.tcx
+*.gpx
+config.json
+Gemfile.lock
