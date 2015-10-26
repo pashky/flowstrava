@@ -7,7 +7,9 @@ require 'bundler/setup'
 require 'http-cookie'
 require 'zipruby'
 
-config = JSON.parse(File.read('config.json'))
+CONFIG = 'config.json'
+
+config = JSON.parse(File.read(CONFIG))
 jar = HTTP::CookieJar.new
 
 uri = URI('https://flow.polar.com/')
@@ -36,8 +38,10 @@ Net::HTTP.start(uri.host, uri.port, :use_ssl => true) do |http|
   
   res = http.get("/training/getCalendarEvents?start=#{config['flow_fromdate']}&end=#{config['flow_todate']}", headers)
   events = JSON.parse(res.body)
-
-  events.each do |event|
+  
+  exercises = events.select{|event| event["type"] == 'EXERCISE'}
+  
+  exercises.each do |event|
     res = http.get("#{event['url']}/export/tcx/true", headers)
     Zip::Archive.open_buffer(res.body) do |archive|
       archive.each do |entry|
@@ -48,5 +52,11 @@ Net::HTTP.start(uri.host, uri.port, :use_ssl => true) do |http|
       end
     end    
   end
+
+  lastdate = exercises.map{|e| Time.at(e["start"])}.max
+  if lastdate
+    config['flow_fromdate'] = lastdate.strftime '%d.%m.%Y'
+  end
+  File.write(CONFIG, JSON.pretty_generate(config))
 end
 
